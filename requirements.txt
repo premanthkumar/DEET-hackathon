@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi
 uvicorn
 streamlit
@@ -11,3 +12,44 @@ python-dotenv
 sqlalchemy
 python-multipart
 Pillow
+=======
+# Core Framework
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# PDF & OCR
+pdfplumber>=0.10.0
+pdf2image>=1.16.3
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# NLP
+spacy>=3.7.0
+python-dateutil>=2.8.2
+dateparser>=1.2.0
+
+# Document parsing
+python-docx>=1.1.0
+PyMuPDF>=1.23.0
+
+# Scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.3
+
+# ML / Deduplication
+scikit-learn>=1.3.0
+numpy>=1.24.0
+
+# Scheduling
+APScheduler>=3.10.4
+
+# Utilities
+python-whois>=0.8.0
+dnspython>=2.4.2
+python-dotenv>=1.0.0
+
+# Dev / Testing
+pytest>=7.4.0
+pytest-flask>=1.3.0
+>>>>>>> c9ecefb537abd3dad63559e7d1d4964ef7b036cc

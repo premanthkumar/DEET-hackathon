@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DEET Portal — Resume Preview & Edit</title>
+    <meta name="description" content="Review and edit your AI-extracted DEET profile before submitting." />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👤</text></svg>" />
+</head>
+
+<body>
+    <div class="bg-orbs"></div>
+
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🎯</div>
+            DEET Portal
+        </div>
+        <div class="navbar-links">
+            <a href="/"><span>🏠</span> Home</a>
+            <a href="/jobs"><span>💼</span> Job Board</a>
+            <a href="/preview" class="active"><span>👤</span> Preview</a>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+
+        <!-- Header -->
+        <div class="flex-between mb-2" style="flex-wrap:wrap; gap:1rem;">
+            <div>
+                <h1 style="font-size:1.75rem; font-weight:800;">Your <span class="text-gradient">DEET Profile</span>
+                </h1>
+                <p class="text-secondary text-sm mt-1">All fields are editable — review and correct any AI extraction
+                    errors before submitting.</p>
+            </div>
+            <div class="flex gap-1" style="flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="window.location='/'">← Upload New</button>
+                <button class="btn btn-success btn-lg" onclick="submitProfile()" id="submitBtn">
+                    ✅ Submit to DEET
+                </button>
+            </div>
+        </div>
+
+        <!-- Overall confidence bar -->
+        <div class="card card-sm mb-2" id="overallConfCard" style="display:none;">
+            <div class="flex-between mb-1">
+                <span style="font-weight:600; font-size:0.9rem;">Overall Profile Completeness</span>
+                <span id="overallPct" style="font-weight:800; color: var(--accent-blue);">0%</span>
+            </div>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="overallBar" style="width:0%"></div>
+            </div>
+            <div class="flex gap-1 mt-2" style="font-size:0.8rem; flex-wrap:wrap; color:var(--text-secondary);">
+                <span>🟢 High confidence</span>
+                <span>🟡 Medium — please review</span>
+                <span>🔴 Low / Missing — needs input</span>
+            </div>
+        </div>
+
+        <!-- No data placeholder -->
+        <div id="noDataMsg" class="card" style="text-align:center; padding:4rem 2rem;">
+            <div style="font-size:3rem; margin-bottom:1rem;">📄</div>
+            <h2 style="margin-bottom:0.75rem;">No Profile Loaded</h2>
+            <p class="text-secondary mb-2">Upload a resume first to auto-populate this form.</p>
+            <a href="/" class="btn btn-primary">← Upload Resume</a>
+        </div>
+
+        <!-- Profile form -->
+        <div id="profileForm" style="display:none;">
+
+            <!-- Tab navigation -->
+            <div class="section-tabs">
+                <button class="tab-btn active" onclick="showTab('personal', this)">👤 Personal</button>
+                <button class="tab-btn" onclick="showTab('education', this)">🎓 Education</button>
+                <button class="tab-btn" onclick="showTab('experience', this)">💼 Experience</button>
+                <button class="tab-btn" onclick="showTab('skills', this)">⚙️ Skills</button>
+                <button class="tab-btn" onclick="showTab('certs', this)">🏆 Certifications</button>
+                <button class="tab-btn" onclick="showTab('projects', this)">🚀 Projects</button>
+            </div>
+
+            <!-- ── Personal Info Tab ── -->
+            <div class="tab-panel" id="tab-personal">
+                <div class="card">
+                    <h2 class="card-title">Personal Information</h2>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Full Name
+                                <span class="conf-badge" id="conf-full_name">—</span>
+                            </label>
+                            <input class="form-control" id="field-full_name" type="text" placeholder="e.g. John Doe" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Email Address
+                                <span class="conf-badge" id="conf-email">—</span>
+                            </label>
+                            <input class="form-control" id="field-email" type="email" placeholder="email@example.com" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Phone Number
+                                <span class="conf-badge" id="conf-phone">—</span>
+                            </label>
+                            <input class="form-control" id="field-phone" type="tel" placeholder="+1 (555) 000-0000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Address / Location
+                                <span class="conf-badge" id="conf-address">—</span>
+                            </label>
+                            <input class="form-control" id="field-address" type="text" placeholder="City, Country" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">LinkedIn Profile</label>
+                            <input class="form-control" id="field-linkedin" type="url"
+                                placeholder="https://linkedin.com/in/..." />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">GitHub Profile</label>
+                            <input class="form-control" id="field-github" type="url"
+                                placeholder="https://github.com/..." />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Professional Summary
+                            <span class="conf-badge" id="conf-summary">—</span>
+                        </label>
+                        <textarea class="form-control" id="field-summary" rows="4"
+                            placeholder="Brief professional summary..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Education Tab ── -->
+            <div class="tab-panel" id="tab-education" style="display:none;">
+                <div class="card">
+                    <div class="flex-between mb-2">
+                        <h2 class="card-title">Education</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="addEducationEntry()">+ Add</button>
+                    </div>
+                    <div id="educationList"></div>
+                    <div class="empty-state" id="eduEmpty" style="padding:2rem;">
+                        <div class="empty-icon">🎓</div>
+                        <p>No education entries extracted. Click "+ Add" to add manually.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Work Experience Tab ── -->
+            <div class="tab-panel" id="tab-experience" style="display:none;">
+                <div class="card">
+                    <div class="flex-between mb-2">
+                        <h2 class="card-title">Work Experience</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="addExperienceEntry()">+ Add</button>
+                    </div>
+                    <div id="experienceList"></div>
+                    <div class="empty-state" id="expEmpty" style="padding:2rem;">
+                        <div class="empty-icon">💼</div>
+                        <p>No experience entries extracted. Click "+ Add" to add manually.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Skills Tab ── -->
+            <div class="tab-panel" id="tab-skills" style="display:none;">
+                <div class="card">
+                    <div class="flex-between mb-2">
+                        <h2 class="card-title">
+                            Skills
+                            <span class="conf-badge" id="conf-skills" style="margin-left:0.5rem;">—</span>
+                        </h2>
+                    </div>
+                    <div class="chip-list" id="skillsList"></div>
+                    <div class="flex gap-1 mt-3" style="flex-wrap:wrap;">
+                        <input class="form-control" id="skillInput" placeholder="Add a skill…" style="max-width:260px;"
+                            onkeydown="if(event.key==='Enter'){addSkill();}" />
+                        <button class="btn btn-secondary" onclick="addSkill()">+ Add Skill</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Certifications Tab ── -->
+            <div class="tab-panel" id="tab-certs" style="display:none;">
+                <div class="card">
+                    <div class="flex-between mb-2">
+                        <h2 class="card-title">Certifications</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="addCertEntry()">+ Add</button>
+                    </div>
+                    <div id="certList"></div>
+                    <div class="empty-state" id="certEmpty" style="padding:2rem;">
+                        <div class="empty-icon">🏆</div>
+                        <p>No certifications extracted. Add them manually.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Projects Tab ── -->
+            <div class="tab-panel" id="tab-projects" style="display:none;">
+                <div class="card">
+                    <div class="flex-between mb-2">
+                        <h2 class="card-title">Projects</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="addProjectEntry()">+ Add</button>
+                    </div>
+                    <div id="projectList"></div>
+                    <div class="empty-state" id="projEmpty" style="padding:2rem;">
+                        <div class="empty-icon">🚀</div>
+                        <p>No projects extracted. Add them manually.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /profileForm -->
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" style="display:none;">
+        <span class="toast-icon" id="toastIcon"></span>
+        <span id="toastMsg"></span>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/preview.js"></script>
+</body>
+
+</html>

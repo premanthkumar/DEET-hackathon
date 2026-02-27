@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DEET Portal — Job Board</title>
+    <meta name="description" content="Browse verified, AI-discovered job vacancies posted on the DEET portal." />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>" />
+</head>
+
+<body>
+    <div class="bg-orbs"></div>
+
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🎯</div>
+            DEET Portal
+        </div>
+        <div class="navbar-links">
+            <a href="/"><span>🏠</span> Home</a>
+            <a href="/jobs" class="active"><span>💼</span> Job Board</a>
+            <a href="/preview"><span>👤</span> Preview</a>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+
+        <!-- Header -->
+        <div class="hero" style="padding: 2.5rem 1rem 2rem;">
+            <div class="hero-eyebrow">🤖 AI-Discovered Vacancies</div>
+            <h1>Live <span>Job Board</span></h1>
+            <p class="text-secondary">Automatically scraped, classified, and verified from employer career pages.</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-strip" id="jobStats">
+            <div class="stat-card blue">
+                <div class="stat-value" id="totalJobsStat">—</div>
+                <div class="stat-label">Total Jobs</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-value" id="verifiedJobsStat">—</div>
+                <div class="stat-label">Verified</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-value" id="categoriesStat">—</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="stat-value" id="lastCrawlStat">Auto</div>
+                <div class="stat-label">Crawl Mode</div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <input class="form-control" id="searchInput" type="search" placeholder="🔍 Search jobs or companies…"
+                oninput="debounceSearch()" />
+            <select class="form-control" id="categoryFilter" onchange="loadJobs(1)" style="max-width:200px;">
+                <option value="">All Categories</option>
+                <option>Information Technology</option>
+                <option>Engineering</option>
+                <option>Healthcare</option>
+                <option>Education</option>
+                <option>Finance &amp; Accounting</option>
+                <option>Marketing &amp; Communications</option>
+                <option>Administration</option>
+                <option>Construction &amp; Trades</option>
+                <option>Agriculture</option>
+                <option>Other</option>
+            </select>
+            <select class="form-control" id="expFilter" onchange="loadJobs(1)" style="max-width:180px;">
+                <option value="">All Experience</option>
+                <option>Entry Level</option>
+                <option>Mid Level</option>
+                <option>Senior</option>
+                <option>Management</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadJobs(1)">🔄 Refresh</button>
+            <button class="btn btn-primary" onclick="triggerCrawl()" id="crawlBtn">⚡ Crawl Now</button>
+        </div>
+
+        <!-- Job grid -->
+        <div class="jobs-grid" id="jobGrid"></div>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">💼</div>
+            <h3>No jobs found</h3>
+            <p>Try adjusting your filters or trigger a new crawl to discover fresh vacancies.</p>
+            <button class="btn btn-primary mt-2" onclick="triggerCrawl()">⚡ Run Crawl</button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination"></div>
+
+        <!-- Add job manually (admin panel) -->
+        <div class="card mt-3">
+            <details>
+                <summary
+                    style="cursor:pointer; font-weight:700; font-size:1rem; list-style:none; display:flex; align-items:center; gap:0.5rem;">
+                    ➕ Add Job Manually
+                    <span class="text-secondary text-sm" style="font-weight:400;">(Employer / Admin)</span>
+                </summary>
+                <div class="divider"></div>
+                <div class="grid-2 mt-2">
+                    <div class="form-group">
+                        <label class="form-label">Job Title *</label>
+                        <input class="form-control" id="manTitle" placeholder="e.g. Software Engineer" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Company Name *</label>
+                        <input class="form-control" id="manCompany" placeholder="e.g. Tech Corp" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Location</label>
+                        <input class="form-control" id="manLocation" placeholder="e.g. Nairobi, Kenya" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Experience Level</label>
+                        <select class="form-control" id="manExp">
+                            <option>Entry Level</option>
+                            <option>Mid Level</option>
+                            <option>Senior</option>
+                            <option>Management</option>
+                            <option>Not Specified</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Application Link</label>
+                        <input class="form-control" id="manLink" type="url" placeholder="https://..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Source URL (for verification)</label>
+                        <input class="form-control" id="manSource" type="url"
+                            placeholder="https://company.com/careers" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Job Description</label>
+                    <textarea class="form-control" id="manDesc" rows="3"
+                        placeholder="Describe the role, responsibilities, requirements…"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitManualJob()">Submit Job Posting</button>
+            </details>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" style="display:none;">
+        <span class="toast-icon" id="toastIcon"></span>
+        <span id="toastMsg"></span>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/jobs.js"></script>
+</body>
+
+</html>
