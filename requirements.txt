@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+streamlit
+beautifulsoup4
+requests
+pdfplumber
+pytesseract
+google-generativeai
+openai
+python-dotenv
+sqlalchemy
+python-multipart
+Pillow
