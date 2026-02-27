@@ -1,8 +1,11 @@
-import streamlit as st
-import requests
 import logging
+import html as html_lib
+
+import requests
+import streamlit as st
 
 logger = logging.getLogger(__name__)
+
 API = "http://localhost:8000"
 
 COMPANY_URLS = {
@@ -14,147 +17,298 @@ COMPANY_URLS = {
 st.set_page_config(
     page_title="DEET AutoMatch",
     layout="wide",
-    page_icon="⚡",
-    initial_sidebar_state="collapsed"
+    page_icon="🧠",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-    * { font-family: 'Space Grotesk', sans-serif; }
-    .stApp { background: #080c14; color: #e2e8f0; }
-    .block-container { padding: 2rem 3rem; max-width: 1400px; }
-    #MainMenu, footer, header { visibility: hidden; }
-    .stDeployButton { display: none; }
-    .deet-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 1.2rem 2rem;
-        background: linear-gradient(135deg, #0d1117 0%, #161b27 100%);
-        border: 1px solid #1e2d40; border-radius: 16px; margin-bottom: 2rem;
-        box-shadow: 0 0 40px rgba(0, 120, 255, 0.08);
-    }
-    .deet-logo {
-        font-size: 1.8rem; font-weight: 700; letter-spacing: -0.04em;
-        background: linear-gradient(135deg, #60a5fa, #a78bfa);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .deet-tagline {
-        font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
-        color: #4a9eff; letter-spacing: 0.15em; text-transform: uppercase;
-    }
-    .live-badge {
-        display: flex; align-items: center; gap: 8px;
-        background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
-        padding: 6px 14px; border-radius: 100px; font-size: 0.72rem; color: #10b981;
-        font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em;
-    }
-    .offline-badge {
-        display: flex; align-items: center; gap: 8px;
-        background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
-        padding: 6px 14px; border-radius: 100px; font-size: 0.72rem; color: #ef4444;
-        font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em;
-    }
-    .live-dot {
-        width: 7px; height: 7px; background: #10b981; border-radius: 50%;
-        animation: pulse 1.5s ease-in-out infinite; display: inline-block;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.4; transform: scale(1.3); }
-    }
-    .stats-row {
-        display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;
-    }
-    .stat-card {
-        background: linear-gradient(135deg, #0d1117, #161b27);
-        border: 1px solid #1e2d40; border-radius: 12px; padding: 1.2rem 1.5rem;
-        position: relative; overflow: hidden;
-    }
-    .stat-card::before {
-        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-    }
-    .stat-number {
-        font-size: 2rem; font-weight: 700; letter-spacing: -0.04em;
-        background: linear-gradient(135deg, #60a5fa, #a78bfa);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .stat-label {
-        font-size: 0.72rem; color: #64748b; text-transform: uppercase;
-        letter-spacing: 0.1em; margin-top: 2px; font-family: 'JetBrains Mono', monospace;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        background: #0d1117; border-radius: 12px; padding: 4px;
-        border: 1px solid #1e2d40; gap: 4px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background: transparent; color: #64748b; border-radius: 8px;
-        font-weight: 500; font-size: 0.85rem; padding: 8px 20px; border: none;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #1d4ed8, #6d28d9) !important; color: white !important;
-    }
-    .stTabs [data-baseweb="tab-panel"] { padding-top: 1.5rem; }
-    .job-card {
-        background: linear-gradient(135deg, #0d1117 0%, #111827 100%);
-        border: 1px solid #1e2d40; border-radius: 14px; padding: 1.4rem 1.6rem;
-        margin-bottom: 0.5rem; transition: all 0.2s ease; position: relative; overflow: hidden;
-    }
-    .job-card:hover {
-        border-color: #3b82f6; box-shadow: 0 0 20px rgba(59,130,246,0.1); transform: translateY(-1px);
-    }
-    .job-card::after {
-        content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-        background: linear-gradient(180deg, #3b82f6, #8b5cf6); border-radius: 3px 0 0 3px;
-    }
-    .job-title { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
-    .job-company { font-size: 0.82rem; color: #60a5fa; font-weight: 500; }
-    .job-meta { font-size: 0.75rem; color: #475569; font-family: 'JetBrains Mono', monospace; margin-top: 6px; }
-    .skill-tag {
-        display: inline-block; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
-        color: #60a5fa; padding: 2px 10px; border-radius: 100px; font-size: 0.7rem; margin: 2px;
-        font-family: 'JetBrains Mono', monospace;
-    }
-    .verified-badge {
-        background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
-        color: #10b981; padding: 3px 10px; border-radius: 100px;
-        font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
-    }
-    .applied-badge {
-        background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3);
-        color: #a78bfa; padding: 3px 10px; border-radius: 100px;
-        font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
-    }
-    .match-high { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .match-mid  { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .match-low  { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .profile-card {
-        background: linear-gradient(135deg, #0d1117, #111827);
-        border: 1px solid #1e2d40; border-radius: 14px; padding: 1.6rem 2rem; margin-bottom: 1.5rem;
-    }
-    .profile-name { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
-    .profile-meta { font-size: 0.8rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-    .stButton > button {
-        background: linear-gradient(135deg, #1d4ed8, #6d28d9); color: white; border: none;
-        border-radius: 10px; padding: 0.6rem 1.4rem; font-weight: 600; font-size: 0.85rem;
-        transition: all 0.2s ease; width: 100%;
-    }
-    .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(29,78,216,0.4); }
-    .section-header {
-        font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: #3b82f6;
-        text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 1rem;
-        display: flex; align-items: center; gap: 8px;
-    }
-    .section-header::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #1e2d40, transparent); }
-    .rank-badge {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 28px; height: 28px; background: linear-gradient(135deg, #1d4ed8, #6d28d9);
-        border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: white; margin-right: 8px;
-    }
-    [data-testid="stFileUploader"] { background: #0d1117; border: 1px solid #1e2d40; border-radius: 12px; }
-    .stSpinner > div { border-top-color: #3b82f6 !important; }
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-base:        #111318;
+  --bg-surface:     #1a1d24;
+  --bg-elevated:    #22262f;
+  --bg-hover:       #292d38;
+
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-mid:     rgba(255,255,255,0.11);
+  --border-accent:  rgba(32,201,151,0.30);
+
+  --text-primary:   #eef0f6;
+  --text-secondary: #9ba3b8;
+  --text-muted:     #555e74;
+
+  --accent:         #20c997;
+  --accent-soft:    rgba(32,201,151,0.10);
+  --accent-glow:    rgba(32,201,151,0.22);
+
+  --good:           #34d399;
+  --good-soft:      rgba(52,211,153,0.10);
+  --warn:           #fbbf24;
+  --warn-soft:      rgba(251,191,36,0.10);
+  --bad:            #f87171;
+  --bad-soft:       rgba(248,113,113,0.10);
+
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.45);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.40);
+}
+
+* { font-family: 'Sora', system-ui, sans-serif; }
+code, .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+
+/* ── APP BG ── */
+.stApp { background: var(--bg-base); min-height: 100vh; }
+.block-container { padding: 1.5rem 2rem 2rem 2rem; max-width: 1400px; }
+#MainMenu, footer, header { visibility: hidden; }
+.stDeployButton { display: none; }
+[data-testid="stSidebar"] { display: none; }
+
+/* ── TOP BAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.8rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.brand {
+  font-weight: 800; font-size: 1.18rem;
+  color: var(--text-primary); letter-spacing: -0.03em;
+}
+.brand em { font-style: normal; color: var(--accent); }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  color: var(--text-secondary);
+  padding: 5px 13px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--good); box-shadow: 0 0 7px var(--good);
+  animation: pulse 2s ease-in-out infinite;
+}
+.pill-dot.off { background: var(--bad); box-shadow: 0 0 7px var(--bad); animation: none; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+/* ── STAT CARD ── */
+.stat {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.stat:hover {
+  border-color: var(--border-accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md), 0 0 20px var(--accent-glow);
+}
+.stat-num  { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1.1; margin-bottom: 3px; }
+.stat-label { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+
+/* ── GENERIC CARD ── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.card:hover { border-color: var(--border-mid); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.card-title {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 9px;
+}
+.muted { color: var(--text-secondary); font-size: 0.83rem; line-height: 1.65; }
+
+/* ── PROFILE CARD ── */
+.profile-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px 22px; margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s;
+}
+.profile-card:hover { border-color: var(--border-mid); }
+.profile-avatar {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 800; color: var(--accent);
+  margin-right: 12px; flex-shrink: 0;
+}
+.profile-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); line-height: 1.25; }
+.profile-sub  { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+.profile-detail { font-size: 0.78rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.65; }
+
+/* ── JOB CARD ── */
+.job-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 16px 18px; margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s, transform 0.22s, box-shadow 0.22s;
+}
+.job-card:hover {
+  border-color: var(--border-accent);
+  border-left-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.job-title   { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.job-company { font-size: 0.75rem; color: var(--accent); font-weight: 600; }
+.job-meta    { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ── SKILL TAGS ── */
+.skill-tag {
+  display: inline-block;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-mid);
+  color: var(--text-secondary);
+  padding: 2px 9px; border-radius: 5px;
+  font-size: 0.66rem; margin: 2px; font-weight: 500;
+  transition: color 0.18s, border-color 0.18s;
+}
+.skill-tag:hover { color: var(--accent); border-color: var(--border-accent); }
+
+/* ── BADGES ── */
+.verified-badge {
+  background: var(--good-soft); border: 1px solid rgba(52,211,153,0.28);
+  color: var(--good); padding: 3px 9px; border-radius: 5px;
+  font-size: 0.66rem; font-weight: 700;
+}
+.applied-badge {
+  background: var(--accent-soft); border: 1px solid var(--border-accent);
+  color: var(--accent); padding: 3px 9px; border-radius: 5px;
+  font-size: 0.66rem; font-weight: 700;
+}
+
+/* ── MATCH SCORES ── */
+.match-high { font-size: 1.5rem; font-weight: 800; color: var(--good); }
+.match-mid  { font-size: 1.5rem; font-weight: 800; color: var(--warn); }
+.match-low  { font-size: 1.5rem; font-weight: 800; color: var(--bad); }
+
+/* ── RANK BADGE ── */
+.rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  background: var(--accent-soft); border: 1px solid var(--border-accent);
+  border-radius: 7px; font-size: 0.64rem; font-weight: 700;
+  color: var(--accent); margin-right: 8px; flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── BUTTONS ── */
+.stButton > button {
+  background: var(--accent) !important;
+  border: none !important; color: #0d1117 !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 0.5rem 1.1rem !important;
+  font-weight: 700 !important; font-size: 0.82rem !important;
+  box-shadow: 0 2px 10px var(--accent-glow) !important;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s !important;
+}
+.stButton > button:hover {
+  background: #2dd4a8 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px var(--accent-glow) !important;
+}
+.stButton > button:active { transform: translateY(0) !important; }
+
+/* ── NAV RADIO ── */
+.stRadio > div { display: flex; gap: 6px; flex-wrap: wrap; }
+.stRadio label {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-mid) !important;
+  color: var(--text-secondary) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 6px 16px !important; font-weight: 600 !important;
+  font-size: 0.8rem !important; cursor: pointer !important;
+  transition: color 0.18s, border-color 0.18s, background 0.18s !important;
+}
+.stRadio label:hover {
+  color: var(--accent) !important;
+  border-color: var(--border-accent) !important;
+  background: var(--accent-soft) !important;
+}
+
+/* ── INPUTS ── */
+.stTextInput input, .stTextArea textarea {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-mid) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.86rem !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+}
+
+/* ── MISC STREAMLIT ── */
+[data-testid="stFileUploader"] {
+  background: var(--bg-elevated) !important;
+  border: 1px dashed var(--border-mid) !important;
+  border-radius: var(--radius-md) !important;
+}
+[data-testid="stExpander"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.stAlert { border-radius: var(--radius-sm) !important; }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ── MOUSE-TRACKING TILT ───────────────────────────────────────────────────────
+import streamlit.components.v1 as components
+
+components.html("""
+<script>
+(function() {
+  function applyTilt() {
+    const cards = window.parent.document.querySelectorAll(
+      '.job-card, .card, .stat, .profile-card'
+    );
+    cards.forEach(card => {
+      card.addEventListener('mousemove', function(e) {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width  / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+        card.style.transform =
+          `perspective(900px) rotateX(${(-dy * 4).toFixed(2)}deg) rotateY(${(dx * 4).toFixed(2)}deg) translateY(-4px)`;
+        card.style.transition = 'box-shadow 0.1s ease';
+      });
+      card.addEventListener('mouseleave', function() {
+        card.style.transform = '';
+        card.style.transition = 'transform 0.4s ease, box-shadow 0.4s ease';
+      });
+    });
+  }
+  setTimeout(applyTilt, 800);
+  new MutationObserver(() => setTimeout(applyTilt, 800))
+    .observe(window.parent.document.body, { childList: true, subtree: true });
+})();
+</script>
+""", height=0)
 
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -166,45 +320,37 @@ def check_api_health() -> bool:
     except Exception:
         return False
 
-def safe_api_get(url: str, timeout: int = 10):
+def safe_api_get(url, timeout=10):
     try:
         r = requests.get(url, timeout=timeout)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.ConnectionError:
-        return None, "Cannot connect to backend. Is uvicorn running on port 8000?"
-    except requests.exceptions.Timeout:
-        return None, "Request timed out. Backend may be overloaded."
-    except requests.exceptions.HTTPError as e:
-        return None, f"API error {e.response.status_code}: {e.response.text}"
+        return None, "Cannot connect to backend."
     except Exception as e:
-        return None, f"Unexpected error: {e}"
+        return None, str(e)
 
-def safe_api_post(url: str, **kwargs):
+def safe_api_post(url, **kwargs):
     try:
         r = requests.post(url, **kwargs)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.ConnectionError:
-        return None, "Cannot connect to backend. Is uvicorn running on port 8000?"
-    except requests.exceptions.Timeout:
-        return None, "Request timed out."
-    except requests.exceptions.HTTPError as e:
-        return None, f"API error {e.response.status_code}: {e.response.text}"
+        return None, "Cannot connect to backend."
     except Exception as e:
-        return None, f"Unexpected error: {e}"
+        return None, str(e)
 
-def skills_html(skills: list) -> str:
+def skills_html(skills):
     return "".join(f'<span class="skill-tag">{s}</span>' for s in skills)
 
-def is_applied(job_title: str, job_company: str) -> bool:
+def is_applied(title, company):
     return any(
-        a["title"] == job_title and a["company"] == job_company
+        a["title"] == title and a["company"] == company
         for a in st.session_state.get("applications", [])
     )
 
 
-# ── SESSION STATE INIT ────────────────────────────────────────────────────────
+# ── SESSION STATE ─────────────────────────────────────────────────────────────
 
 if "applications" not in st.session_state:
     st.session_state["applications"] = []
@@ -212,372 +358,336 @@ if "cached_jobs" not in st.session_state:
     st.session_state["cached_jobs"] = []
 
 
-# ── HEADER ────────────────────────────────────────────────────────────────────
+# ── TOP BAR ───────────────────────────────────────────────────────────────────
 
 api_online = check_api_health()
-badge_html = (
-    '<div class="live-badge"><span class="live-dot"></span> SYSTEM LIVE</div>'
-    if api_online else
-    '<div class="offline-badge">⚠ BACKEND OFFLINE</div>'
-)
-
 st.markdown(f"""
-<div class="deet-header">
-    <div>
-        <div class="deet-logo">⚡ DEET AutoMatch</div>
-        <div class="deet-tagline">AI-Powered Job Discovery &amp; Talent Registration</div>
-    </div>
-    {badge_html}
+<div class="topbar">
+  <div class="brand">⚡ DEET <em>AutoMatch</em></div>
+  <div class="pill">
+    <span class="pill-dot {'off' if not api_online else ''}"></span>
+    {'SYSTEM LIVE' if api_online else 'BACKEND OFFLINE'}
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
 if not api_online:
-    st.error("⚠️ Backend is offline. Start it with: `uvicorn main:app --reload --port 8000`")
+    st.warning("Backend offline. Run: `uvicorn main:app --reload --port 8000`")
 
 
-# ── STATS ─────────────────────────────────────────────────────────────────────
+# ── LAYOUT ────────────────────────────────────────────────────────────────────
 
-job_count = len(st.session_state["cached_jobs"]) or "—"
-profile_skills = len(st.session_state["profile"].get("skills", [])) if "profile" in st.session_state else "—"
-applied_count = len(st.session_state["applications"])
+left, main = st.columns([1.1, 3.2], gap="large")
 
-st.markdown(f"""
-<div class="stats-row">
-    <div class="stat-card">
-        <div class="stat-number">3</div>
-        <div class="stat-label">Employers Crawled</div>
+job_count      = len(st.session_state["cached_jobs"])
+applied_count  = len(st.session_state["applications"])
+profile_skills = len(st.session_state.get("profile", {}).get("skills", []))
+
+
+# ── LEFT COLUMN ───────────────────────────────────────────────────────────────
+
+with left:
+    st.markdown(f"""
+<div class="stat"><div class="stat-num">{job_count}</div><div class="stat-label">Jobs Discovered</div></div>
+<div class="stat"><div class="stat-num">{applied_count}</div><div class="stat-label">Applications Sent</div></div>
+<div class="stat"><div class="stat-num">{profile_skills}</div><div class="stat-label">Skills Found</div></div>
+""", unsafe_allow_html=True)
+
+    profile    = st.session_state.get("profile", {})
+    name_val   = profile.get("name") or "No profile yet"
+    avatar_ch  = name_val[0].upper() if name_val != "No profile yet" else "?"
+    email_safe = html_lib.escape(profile.get("email", ""))
+    phone_safe = html_lib.escape(profile.get("phone", ""))
+    loc_safe   = html_lib.escape(profile.get("location", "—"))
+    edu_safe   = html_lib.escape((profile.get("education") or "—")[:60])
+    contact    = " · ".join(filter(None, [email_safe, phone_safe]))
+
+    st.markdown(f"""
+<div class="profile-card">
+  <div class="card-title">👤 Profile</div>
+  <div style="display:flex;align-items:center;margin-bottom:10px;">
+    <div class="profile-avatar">{avatar_ch}</div>
+    <div>
+      <div class="profile-name">{html_lib.escape(name_val)}</div>
+      <div class="profile-sub">{contact}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-number">{job_count}</div>
-        <div class="stat-label">Jobs Discovered</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">{applied_count}</div>
-        <div class="stat-label">Applications Sent</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">{profile_skills}</div>
-        <div class="stat-label">Your Skills Found</div>
-    </div>
+  </div>
+  <div class="profile-detail">📍 {loc_safe}</div>
+  <div class="profile-detail">🎓 {edu_safe}</div>
+</div>
+<div class="card">
+  <div class="card-title">💡 Tips</div>
+  <div class="muted">Upload a clean text-based PDF. Fetch jobs then run matching.</div>
 </div>
 """, unsafe_allow_html=True)
 
-
-# ── TABS ──────────────────────────────────────────────────────────────────────
-
-tab1, tab2, tab3 = st.tabs(["⚡  Live Job Listings", "🧠  Register via Resume", "📋  My Applications"])
-
-
-# ════════════════════════════════
-# TAB 1 — JOB LISTINGS
-# ════════════════════════════════
-with tab1:
-    st.markdown('<div class="section-header">Auto-Discovered Vacancies</div>', unsafe_allow_html=True)
-
-    col_btn, col_info = st.columns([2, 5])
-    with col_btn:
-        fetch = st.button("🔄  Fetch Latest Jobs")
-    with col_info:
-        st.markdown(
-            "<p style='color:#475569;font-size:0.8rem;padding-top:0.6rem;"
-            "font-family:JetBrains Mono,monospace;'>Crawled live from TCS · Infosys · Internshala</p>",
-            unsafe_allow_html=True
-        )
-
-    if fetch:
-        with st.spinner("Crawling employer career pages..."):
+    if st.button("🔄 Fetch Latest Jobs"):
+        with st.spinner("Crawling..."):
             jobs, error = safe_api_get(f"{API}/jobs", timeout=15)
         if error:
-            st.error(f"❌ {error}")
+            st.error(error)
         elif jobs:
             st.session_state["cached_jobs"] = jobs
             st.rerun()
 
-    # ── JOB CARDS LOOP ── (apply form is BELOW this, outside the loop)
-    if st.session_state["cached_jobs"]:
-        st.success(f"✓ Showing {len(st.session_state['cached_jobs'])} vacancies")
-        st.markdown("<br>", unsafe_allow_html=True)
 
-        for job in st.session_state["cached_jobs"]:
-            already_applied = is_applied(job.get("title"), job.get("company"))
-            verified = "✓ Verified" if job.get("verified") else "Mock Data"
-            verified_color = "#10b981" if job.get("verified") else "#475569"
-            applied = "✓ Applied" if already_applied else ""
+# ── MAIN COLUMN ───────────────────────────────────────────────────────────────
 
-            st.markdown(f"""
-            <div class="job-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                    <div style="flex:1;">
-                        <div class="job-title">{job.get('title', 'Unknown Role')}</div>
-                        <div class="job-company">{job.get('company', '')}</div>
-                        <div class="job-meta">📍 {job.get('location', '')} · 💼 {job.get('type', '')}</div>
-                        <div style="margin-top:10px;">{skills_html(job.get('skills', []))}</div>
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:90px;">
-                        <span style="color:{verified_color};font-size:0.7rem;font-family:'JetBrains Mono',monospace;">{verified}</span>
-                        <span style="color:#a78bfa;font-size:0.7rem;font-family:'JetBrains Mono',monospace;">{applied}</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if not already_applied:
-                company_url = COMPANY_URLS.get(job.get("company", ""), "#")
-                col_open, col_apply = st.columns([1, 1])
-                with col_open:
-                    st.link_button("🌐 Open Job Page", company_url)
-                with col_apply:
-                    if st.button("📨 Apply Now", key=f"apply_{job.get('company')}_{job.get('title')}"):
-                        st.session_state["apply_target"] = job
-                        st.rerun()
-
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-
-    # ── APPLY FORM — outside the for loop, still inside tab1 ──────────────────
-if "apply_target" in st.session_state:
-        job = st.session_state["apply_target"]
-        profile = st.session_state.get("profile", {})
-
-        st.markdown("---")
-        st.markdown(f'<div class="section-header">Apply — {job.get("title")} at {job.get("company")}</div>', unsafe_allow_html=True)
-
-        with st.form("apply_form"):
-            name  = st.text_input("Your Name",  value=profile.get("name", ""))
-            email = st.text_input("Your Email", value=profile.get("email", ""))
-            cover = st.text_area(
-                "Cover Note",
-                value=(
-                    f"I am excited to apply for the {job.get('title')} position at {job.get('company')}. "
-                    f"With {profile.get('experience_years', 0)} years of experience and skills in "
-                    f"{', '.join(profile.get('skills', [])[:5])}, I believe I am a strong fit for this role."
-                ),
-                height=150
-            )
-            col_submit, col_cancel = st.columns([1, 1])
-            with col_submit:
-                submitted = st.form_submit_button("📨 Send Application")
-            with col_cancel:
-                cancelled = st.form_submit_button("✕ Cancel")
-
-        if submitted:
-            if not name or not email:
-                st.error("Please fill in your name and email.")
-            else:
-                result, err = safe_api_post(f"{API}/apply", json={
-                    "applicant_name": name,
-                    "applicant_email": email,
-                    "cover_note": cover,
-                    "job_title": job.get("title"),
-                    "job_company": job.get("company"),
-                })
-                if err:
-                    st.warning(f"⚠️ Email could not be sent: {err} — application is still tracked.")
-                else:
-                    st.success("✅ Application email sent!")
-
-                st.session_state["applications"].append({
-                    "title": job.get("title"),
-                    "company": job.get("company"),
-                    "location": job.get("location"),
-                    "name": name,
-                    "email": email,
-                    "cover": cover,
-                    "status": "Sent" if not err else "Tracked (email failed)",
-                })
-                del st.session_state["apply_target"]
-                st.rerun()
-
-        if cancelled:
-            del st.session_state["apply_target"]
-            st.rerun()
-
-
-# ════════════════════════════════
-# TAB 2 — RESUME REGISTRATION
-# ════════════════════════════════
-with tab2:
-    st.markdown('<div class="section-header">Instant Profile Creation</div>', unsafe_allow_html=True)
-
-    uploaded = st.file_uploader(
-        "Upload Resume (PDF)",
-        type=["pdf"],
-        help="Your DEET profile will be created automatically using AI"
+with main:
+    nav = st.radio(
+        "",
+        ["🏠 Dashboard", "💼 Jobs", "🧠 Register", "📋 Applications"],
+        horizontal=True,
+        label_visibility="collapsed"
     )
 
-    if uploaded:
-        with st.spinner("⚡ AI engine parsing your resume..."):
-            profile, error = safe_api_post(
-                f"{API}/parse-resume",
-                files={"file": ("resume.pdf", uploaded.getvalue(), "application/pdf")},
-                timeout=30
-            )
-
-        if error:
-            st.error(f"❌ Parser error: {error}")
-            profile = None
-
-        if profile:
-            parse_failed = "Could not parse" in profile.get("name", "")
-            if parse_failed:
-                st.error(f"❌ {profile.get('name')} — Try uploading a cleaner, text-based PDF.")
-            else:
-                st.success("✅ DEET Profile Created Successfully")
-                st.session_state["profile"] = profile
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                all_skills = profile.get("skills", [])
-                hidden = max(0, len(all_skills) - 10)
-                skill_preview = skills_html(all_skills[:10])
-                if hidden:
-                    skill_preview += (
-                        "<span style=\"color:#64748b;font-size:0.7rem;margin-left:4px;\">"
-                        f"+{hidden} more"
-                        "</span>"
-                    )
-
-                # Build contact / social line
-                meta_parts = []
-                email = profile.get("email", "")
-                phone = profile.get("phone", "")
-                if email:
-                    meta_parts.append(email)
-                if phone:
-                    meta_parts.append(phone)
-                if profile.get("linkedin"):
-                    meta_parts.append(
-                        f'<a href="{profile["linkedin"]}" target="_blank" '
-                        'style="color:#60a5fa;text-decoration:none;">LinkedIn</a>'
-                    )
-                if profile.get("github"):
-                    meta_parts.append(
-                        f'<a href="{profile["github"]}" target="_blank" '
-                        'style="color:#60a5fa;text-decoration:none;">GitHub</a>'
-                    )
-                meta_line = " · ".join(meta_parts) if meta_parts else ""
-
-                st.markdown(
-                    f"""
-                <div class="profile-card">
-                    <div class="profile-name">{profile.get('name', '—')}</div>
-                    <div class="profile-meta">{meta_line}</div>
-                    <div class="profile-meta" style="margin-top:4px;">
-                        📍 {profile.get('location', '—')}  ·  🎓 {profile.get('education', '—')}
-                    </div>
-                    <div style="margin-top:14px;">{skill_preview}</div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Experience", f"{profile.get('experience_years', 0)} yrs")
-                with col2:
-                    st.metric("Skills Found", len(all_skills))
-                with col3:
-                    st.metric("Previous Roles", len(profile.get("previous_roles", [])))
-                with col4:
-                    st.metric("Education", profile.get("education", "—") or "—")
-
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                if st.button("🎯  Find My Matching Jobs"):
-                    with st.spinner("🧠 Fetching jobs and calculating matches..."):
-                        jobs, jobs_err = safe_api_get(f"{API}/jobs", timeout=15)
-                        if jobs_err:
-                            st.error(f"❌ Could not fetch jobs: {jobs_err}")
-                        else:
-                            matches, match_err = safe_api_post(
-                                f"{API}/match",
-                                json={"profile": profile, "jobs": jobs},
-                                timeout=45
-                            )
-                            if match_err:
-                                st.error(f"❌ Matching failed: {match_err}")
-                            elif matches:
-                                st.session_state["cached_jobs"] = jobs
-                                st.markdown("<br>", unsafe_allow_html=True)
-                                st.markdown('<div class="section-header">Top Matches for You</div>', unsafe_allow_html=True)
-
-                                for i, job in enumerate(matches[:5]):
-                                    score = job.get("match_score", 0)
-                                    score_class = "match-high" if score >= 70 else "match-mid" if score >= 40 else "match-low"
-                                    already_applied = is_applied(job.get("title"), job.get("company"))
-                                    applied_html = '<span class="applied-badge">✓ Applied</span>' if already_applied else ""
-
-                                    st.markdown(f"""
-                                    <div class="job-card">
-                                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                                            <div style="flex:1;">
-                                                <div style="display:flex;align-items:center;">
-                                                    <span class="rank-badge">#{i+1}</span>
-                                                    <span class="job-title">{job.get('title')}</span>
-                                                </div>
-                                                <div class="job-company" style="margin-left:36px;">{job.get('company')}  ·  📍 {job.get('location')}</div>
-                                                <div style="margin:10px 0 6px 36px;font-size:0.78rem;color:#94a3b8;font-style:italic;">"{job.get('match_reason', '')}"</div>
-                                                <div style="margin-left:36px;">{skills_html(job.get('skills', []))}</div>
-                                            </div>
-                                            <div style="text-align:center;min-width:80px;">
-                                                <div class="{score_class}">{score}%</div>
-                                                <div style="font-size:0.65rem;color:#475569;font-family:JetBrains Mono,monospace;">MATCH</div>
-                                                <div style="margin-top:6px;">{applied_html}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-
-                                    if not already_applied:
-                                        company_url = COMPANY_URLS.get(job.get("company", ""), "#")
-                                        col_open, col_apply = st.columns([1, 1])
-                                        with col_open:
-                                            st.link_button("🌐 Open Job Page", company_url)
-                                        with col_apply:
-                                            if st.button("📨 Apply Now", key=f"match_apply_{i}_{job.get('company')}"):
-                                                st.session_state["apply_target"] = job
-                                                st.rerun()
-
-
-# ════════════════════════════════
-# TAB 3 — APPLICATIONS TRACKER
-# ════════════════════════════════
-with tab3:
-    st.markdown('<div class="section-header">Your Applications This Session</div>', unsafe_allow_html=True)
-
-    apps = st.session_state.get("applications", [])
-
-    if not apps:
+    # ── DASHBOARD ──
+    if nav == "🏠 Dashboard":
         st.markdown("""
-        <div style="text-align:center;padding:3rem;color:#475569;">
-            <div style="font-size:2rem;margin-bottom:1rem;">📋</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">
-                No applications yet. Apply to jobs from the listings tab.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.success(f"✓ {len(apps)} application(s) tracked this session")
-        st.markdown("<br>", unsafe_allow_html=True)
+<div class="card">
+  <div class="card-title">🏠 Dashboard</div>
+  <div class="muted">Fetch jobs, upload your resume, then run matching to see results here.</div>
+</div>
+""", unsafe_allow_html=True)
 
-        for i, app in enumerate(apps):
-            status_color = "#10b981" if app["status"] == "Sent" else "#f59e0b"
+        if "profile" in st.session_state and st.session_state["cached_jobs"]:
+            if st.button("🎯 Run Matching Now"):
+                with st.spinner("AI matching in progress..."):
+                    matches, err = safe_api_post(
+                        f"{API}/match",
+                        json={"profile": st.session_state["profile"], "jobs": st.session_state["cached_jobs"]},
+                        timeout=45,
+                    )
+                if err:
+                    st.error(err)
+                else:
+                    st.session_state["latest_matches"] = matches
+
+        matches = st.session_state.get("latest_matches", [])
+        if matches:
+            st.markdown('<div class="card"><div class="card-title">🏆 Your Top Matches</div>', unsafe_allow_html=True)
+            for i, job in enumerate(matches[:5], 1):
+                score = job.get("match_score", 0)
+                sc = "match-high" if score >= 70 else "match-mid" if score >= 40 else "match-low"
+                st.markdown(f"""
+<div class="job-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="display:flex;align-items:center;">
+        <span class="rank-badge">#{i}</span>
+        <span class="job-title">{job.get('title','')}</span>
+      </div>
+      <div class="job-company" style="margin-left:32px;">{job.get('company','')} · 📍 {job.get('location','')}</div>
+      <div style="margin:6px 0 4px 32px;font-size:0.73rem;color:#555e74;font-style:italic;">"{job.get('match_reason','')}"</div>
+      <div style="margin-left:32px;">{skills_html(job.get('skills',[]))}</div>
+    </div>
+    <div style="text-align:center;min-width:70px;">
+      <div class="{sc}">{score}%</div>
+      <div style="font-size:0.59rem;color:#555e74;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;">Match</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── JOBS ──
+    elif nav == "💼 Jobs":
+        st.markdown("""
+<div class="card">
+  <div class="card-title">💼 Live Job Listings</div>
+  <div class="muted">Auto-discovered from employer career pages. Click Apply to send your application.</div>
+</div>
+""", unsafe_allow_html=True)
+
+        if not st.session_state["cached_jobs"]:
+            st.info("No jobs yet. Click **Fetch Latest Jobs** on the left.")
+        else:
+            st.success(f"✓ Showing {len(st.session_state['cached_jobs'])} vacancies")
+            for job in st.session_state["cached_jobs"]:
+                already       = is_applied(job.get("title"), job.get("company"))
+                salary        = job.get("salary", "")
+                salary_html   = f'<span style="color:#34d399;font-size:0.72rem;font-weight:700;">{salary}</span>' if salary else ""
+                verified_html = '<span class="verified-badge">✓ Verified</span>' if job.get("verified") else ""
+                applied_html  = '<span class="applied-badge">✓ Applied</span>' if already else ""
+
+                st.markdown(f"""
+<div class="job-card">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div style="flex:1;">
+      <div class="job-title">{job.get('title','')}</div>
+      <div class="job-company">{job.get('company','')}</div>
+      <div class="job-meta">📍 {job.get('location','')} · 💼 {job.get('type','')}</div>
+      <div style="margin-top:8px;">{skills_html(job.get('skills',[]))}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:110px;padding-left:8px;">
+      {verified_html}{salary_html}{applied_html}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+                if not already:
+                    ca, cb = st.columns([1, 1])
+                    with ca:
+                        st.link_button("🌐 Open Job", COMPANY_URLS.get(job.get("company", ""), job.get("url", "#")))
+                    with cb:
+                        if st.button("📨 Apply", key=f"apply_{job.get('company')}_{job.get('title')}"):
+                            st.session_state["apply_target"] = job
+                            st.rerun()
+
+        if "apply_target" in st.session_state:
+            job = st.session_state["apply_target"]
+            p   = st.session_state.get("profile", {})
+            st.markdown("---")
+            st.markdown(f'<div class="card"><div class="card-title">📨 Apply — {job.get("title")} at {job.get("company")}</div>', unsafe_allow_html=True)
+            with st.form("apply_form"):
+                name  = st.text_input("Your Name",  value=p.get("name", ""))
+                email = st.text_input("Your Email", value=p.get("email", ""))
+                cover = st.text_area("Cover Note", value=(
+                    f"I am excited to apply for the {job.get('title')} position at {job.get('company')}. "
+                    f"With {p.get('experience_years', 0)} years of experience and skills in "
+                    f"{', '.join(p.get('skills', [])[:5])}, I believe I am a strong fit."
+                ), height=140)
+                cs, cc = st.columns([1, 1])
+                with cs: submitted = st.form_submit_button("Send Application")
+                with cc: cancelled = st.form_submit_button("✕ Cancel")
+
+            if submitted:
+                if not name or not email:
+                    st.error("Fill in name and email.")
+                else:
+                    _, err = safe_api_post(f"{API}/apply", json={
+                        "applicant_name": name, "applicant_email": email,
+                        "cover_note": cover, "job_title": job.get("title"), "job_company": job.get("company"),
+                    })
+                    st.session_state["applications"].append({
+                        "title": job.get("title"), "company": job.get("company"),
+                        "location": job.get("location"), "name": name, "email": email,
+                        "cover": cover, "status": "Sent" if not err else "Tracked",
+                    })
+                    del st.session_state["apply_target"]
+                    st.rerun()
+            if cancelled:
+                del st.session_state["apply_target"]
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── REGISTER ──
+    elif nav == "🧠 Register":
+        st.markdown("""
+<div class="card">
+  <div class="card-title">🧠 Register via Resume</div>
+  <div class="muted">Upload your PDF resume. AI will extract your profile instantly.</div>
+</div>
+""", unsafe_allow_html=True)
+
+        uploaded = st.file_uploader("Upload Resume (PDF)", type=["pdf"], label_visibility="collapsed")
+        if uploaded:
+            with st.spinner("⚡ AI parsing your resume..."):
+                profile, error = safe_api_post(
+                    f"{API}/parse-resume",
+                    files={"file": ("resume.pdf", uploaded.getvalue(), "application/pdf")},
+                    timeout=30,
+                )
+            if error:
+                st.error(error)
+            elif profile:
+                if "Could not parse" in profile.get("name", ""):
+                    st.error(profile.get("name"))
+                else:
+                    st.session_state["profile"] = profile
+                    st.success("✅ Profile created!")
+
+        if "profile" in st.session_state:
+            p = st.session_state["profile"]
+            all_skills = p.get("skills", [])
+            hidden = max(0, len(all_skills) - 12)
+            sp = skills_html(all_skills[:12])
+            if hidden:
+                sp += f'<span style="color:#555e74;font-size:0.7rem;margin-left:4px;">+{hidden} more</span>'
+
             st.markdown(f"""
-            <div class="job-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <div class="job-title">{app['title']}</div>
-                        <div class="job-company">{app['company']}  ·  📍 {app.get('location', '')}</div>
-                        <div class="job-meta" style="margin-top:6px;">
-                            Applied as: {app['name']}  ·  {app['email']}
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="color:{status_color};font-size:0.8rem;font-family:'JetBrains Mono',monospace;font-weight:600;">
-                            ● {app['status']}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="card">
+  <div class="card-title">📋 Your DEET Profile</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Name</div>
+      <div style="font-size:0.88rem;font-weight:600;color:#eef0f6;margin-top:2px;">{html_lib.escape(p.get('name','—'))}</div>
+    </div>
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Email</div>
+      <div style="font-size:0.88rem;color:#eef0f6;margin-top:2px;">{html_lib.escape(p.get('email','—'))}</div>
+    </div>
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Phone</div>
+      <div style="font-size:0.88rem;color:#eef0f6;margin-top:2px;">{html_lib.escape(p.get('phone','—'))}</div>
+    </div>
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Location</div>
+      <div style="font-size:0.88rem;color:#eef0f6;margin-top:2px;">{html_lib.escape(p.get('location','—'))}</div>
+    </div>
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Experience</div>
+      <div style="font-size:0.88rem;font-weight:700;color:#20c997;margin-top:2px;">{p.get('experience_years',0)} yrs</div>
+    </div>
+    <div>
+      <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;">Roles</div>
+      <div style="font-size:0.88rem;font-weight:700;color:#20c997;margin-top:2px;">{len(p.get('previous_roles',[]))}</div>
+    </div>
+  </div>
+  <div style="font-size:0.66rem;color:#555e74;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Skills ({len(all_skills)})</div>
+  <div>{sp}</div>
+</div>
+""", unsafe_allow_html=True)
 
-            with st.expander(f"View Cover Note — {app['title']}"):
-                st.write(app["cover"])
+            if st.button("🎯 Find My Matching Jobs"):
+                with st.spinner("Matching..."):
+                    jobs, je = safe_api_get(f"{API}/jobs", timeout=15)
+                    if je:
+                        st.error(je)
+                    else:
+                        matches, me = safe_api_post(
+                            f"{API}/match", json={"profile": p, "jobs": jobs}, timeout=45,
+                        )
+                        if me:
+                            st.error(me)
+                        elif matches:
+                            st.session_state["cached_jobs"] = jobs
+                            st.session_state["latest_matches"] = matches
+                            st.success("✅ Matches ready! Go to Dashboard.")
+
+    # ── APPLICATIONS ──
+    elif nav == "📋 Applications":
+        apps = st.session_state.get("applications", [])
+        st.markdown(f"""
+<div class="card">
+  <div class="card-title">📋 My Applications</div>
+  <div class="muted">{len(apps)} application(s) tracked this session.</div>
+</div>
+""", unsafe_allow_html=True)
+
+        if not apps:
+            st.markdown("""
+<div class="card" style="text-align:center;padding:2.5rem;">
+  <div style="font-size:2rem;margin-bottom:8px;">📭</div>
+  <div style="font-weight:700;color:#eef0f6;margin-bottom:4px;">No applications yet</div>
+  <div class="muted">Apply to jobs from the Jobs tab.</div>
+</div>
+""", unsafe_allow_html=True)
+        else:
+            for app in apps:
+                sc = "#34d399" if app["status"] == "Sent" else "#fbbf24"
+                st.markdown(f"""
+<div class="job-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div class="job-title">{app.get('title','')}</div>
+      <div class="job-company">{app.get('company','')} · 📍 {app.get('location','')}</div>
+      <div class="job-meta">Applied as: {app.get('name','')} · {app.get('email','')}</div>
+    </div>
+    <span style="color:{sc};font-size:0.76rem;font-weight:700;letter-spacing:0.04em;">● {app['status']}</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+                with st.expander(f"Cover Note — {app.get('title','')}"):
+                    st.write(app.get("cover", ""))
