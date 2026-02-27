@@ -429,39 +429,55 @@ with tab2:
                 hidden = max(0, len(all_skills) - 10)
                 skill_preview = skills_html(all_skills[:10])
                 if hidden:
-                    skill_preview += f'<span style="color:#64748b;font-size:0.7rem;margin-left:4px;">+{hidden} more</span>'
+                    skill_preview += (
+                        "<span style=\"color:#64748b;font-size:0.7rem;margin-left:4px;\">"
+                        f"+{hidden} more"
+                        "</span>"
+                    )
 
-                # Social links (LinkedIn / GitHub)
-                social_bits = []
+                # Build contact / social line
+                meta_parts = []
+                email = profile.get("email", "")
+                phone = profile.get("phone", "")
+                if email:
+                    meta_parts.append(email)
+                if phone:
+                    meta_parts.append(phone)
                 if profile.get("linkedin"):
-                    social_bits.append(f'<a href="{profile["linkedin"]}" target="_blank" style="color:#60a5fa;text-decoration:none;">LinkedIn</a>')
+                    meta_parts.append(
+                        f'<a href="{profile["linkedin"]}" target="_blank" '
+                        'style="color:#60a5fa;text-decoration:none;">LinkedIn</a>'
+                    )
                 if profile.get("github"):
-                    sep = " · " if social_bits else ""
-                    social_bits.append(sep + f'<a href="{profile["github"]}" target="_blank" style="color:#60a5fa;text-decoration:none;">GitHub</a>')
-                social_html = "".join(social_bits)
+                    meta_parts.append(
+                        f'<a href="{profile["github"]}" target="_blank" '
+                        'style="color:#60a5fa;text-decoration:none;">GitHub</a>'
+                    )
+                meta_line = " · ".join(meta_parts) if meta_parts else ""
 
-                st.markdown(f"""
+                st.markdown(
+                    f"""
                 <div class="profile-card">
                     <div class="profile-name">{profile.get('name', '—')}</div>
-                    <div class="profile-meta">
-                        {profile.get('email', '')}
-                        {' · ' if profile.get('email') and profile.get('phone') else ''}
-                        {profile.get('phone', '')}
-                        {' · ' if (profile.get('email') or profile.get('phone')) and social_html else ''}
-                        {social_html}
+                    <div class="profile-meta">{meta_line}</div>
+                    <div class="profile-meta" style="margin-top:4px;">
+                        📍 {profile.get('location', '—')}  ·  🎓 {profile.get('education', '—')}
                     </div>
-                    <div class="profile-meta" style="margin-top:4px;">📍 {profile.get('location', '—')}  ·  🎓 {profile.get('education', '—')}</div>
                     <div style="margin-top:14px;">{skill_preview}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("Experience", f"{profile.get('experience_years', 0)} yrs")
                 with col2:
                     st.metric("Skills Found", len(all_skills))
                 with col3:
                     st.metric("Previous Roles", len(profile.get("previous_roles", [])))
+                with col4:
+                    st.metric("Education", profile.get("education", "—") or "—")
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
