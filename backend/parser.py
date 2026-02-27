@@ -18,6 +18,8 @@ EMPTY_PROFILE = {
     "name": "",
     "email": "",
     "phone": "",
+    "linkedin": "",
+    "github": "",
     "skills": [],
     "experience_years": 0,
     "education": "",
@@ -133,6 +135,24 @@ def build_profile_from_text(text: str) -> dict:
     email_match = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
     email = email_match.group(0) if email_match else ""
 
+    # LinkedIn / GitHub URLs (first occurrence)
+    linkedin = ""
+    github = ""
+    # rough URL regex, then filter by domain
+    for match in re.findall(r"(https?://[^\s]+|www\.[^\s]+|linkedin\.com/[^\s]+|github\.com/[^\s]+)", text):
+        m = match.strip(".,);]")
+        lower = m.lower()
+        if not linkedin and "linkedin.com" in lower:
+            if not lower.startswith("http"):
+                m = "https://" + m.lstrip()
+            linkedin = m
+        if not github and "github.com" in lower:
+            if not lower.startswith("http"):
+                m = "https://" + m.lstrip()
+            github = m
+        if linkedin and github:
+            break
+
     # Phone (very rough)
     phone_match = re.search(r"(\+?\d[\d\-\s]{7,}\d)", text)
     phone = phone_match.group(0).strip() if phone_match else ""
@@ -167,27 +187,70 @@ def build_profile_from_text(text: str) -> dict:
     # preserve order and uniqueness
     skills = list(dict.fromkeys(found_skills))
 
-    # Experience years: look for patterns like "3 years", "5+ years"
+    # Experience years: look for patterns like "3 years", "5+ years",
+    # words like "four years", or lines starting with labels such as
+    # "Year of experience".
     experience_years = 0
     exp_match = re.search(r"(\d+)\s*\+?\s*years?", lower_text)
-    if exp_match:
+    # also handle number-words (one, two, three...) e.g. "four years experience"
+    if not exp_match:
+        WORD_NUMS = {
+            "one": 1,
+            "two": 2,
+            "three": 3,
+            "four": 4,
+            "five": 5,
+            "six": 6,
+            "seven": 7,
+            "eight": 8,
+            "nine": 9,
+            "ten": 10,
+        }
+        word_match = re.search(r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+years?", lower_text)
+        if word_match:
+            experience_years = WORD_NUMS.get(word_match.group(1), 0)
+    if not exp_match and experience_years == 0:
+        for ln in lines:
+            if ln.lower().startswith("year of experience"):
+                num_match = re.search(r"(\d+(\.\d+)?)", ln)
+                if num_match:
+                    exp_match = num_match
+                    break
+    if exp_match and experience_years == 0:
         try:
-            experience_years = int(exp_match.group(1))
+            experience_years = int(float(exp_match.group(1)))
         except ValueError:
             experience_years = 0
 
-    # Education: capture lines mentioning common degree keywords
+    # Education: prefer capturing the block under an "Education" heading,
+    # then fall back to scanning for degree keywords.
     education_lines = []
     EDU_KEYWORDS = [
         "bachelor", "master", "b.tech", "btech", "b.e", "be ",
         "m.tech", "mtech", "m.e", "bsc", "msc", "bsc.", "msc.",
         "degree", "bachelor of", "master of",
+        "bs in", "ba in",
     ]
-    for ln in lines:
-        lower_ln = ln.lower()
-        if any(k in lower_ln for k in EDU_KEYWORDS):
-            education_lines.append(ln)
-    education = " / ".join(dict.fromkeys(education_lines))[:250]
+
+    # First: capture the section after an "Education" heading
+    for idx, ln in enumerate(lines):
+        if ln.strip().lower().startswith("education"):
+            for sub in lines[idx + 1 : idx + 10]:
+                # stop at next all‑caps heading (e.g. "SKILLS", "EXPERIENCE")
+                if sub.isupper() and len(sub.split()) <= 4:
+                    break
+                if sub:
+                    education_lines.append(sub)
+            break
+
+    # Fallback/augment: any line mentioning degree keywords
+    if not education_lines:
+        for ln in lines:
+            lower_ln = ln.lower()
+            if any(k in lower_ln for k in EDU_KEYWORDS):
+                education_lines.append(ln)
+
+    education = " / ".join(dict.fromkeys(education_lines))[:300]
 
     # Location: look for a "Location" line or address-style line
     location = ""
@@ -200,12 +263,28 @@ def build_profile_from_text(text: str) -> dict:
             break
     # fallback: last token of a contact-looking line
     if not location:
-        for ln in lines[:15]:
-            if any(city in ln.lower() for city in ["hyderabad", "bangalore", "bengaluru", "mumbai", "pune", "chennai", "delhi"]):
+        for ln in lines[:20]:
+            if any(
+                city in ln.lower()
+                for city in [
+                    "hyderabad",
+                    "bangalore",
+                    "bengaluru",
+                    "mumbai",
+                    "pune",
+                    "chennai",
+                    "delhi",
+                    "kolkata",
+                    "noida",
+                    "gurgaon",
+                    "coimbatore",
+                ]
+            ):
                 location = ln.strip()
                 break
 
-    # Previous roles: rough extraction from lines under "Experience" headings
+    # Previous roles: rough extraction from lines under "Experience"/"Employment" headings,
+    # and from explicit "Interested Job Function" style lines
     previous_roles = []
     for idx, ln in enumerate(lines):
         if any(h in ln.lower() for h in ["experience", "work history", "employment"]):
@@ -214,15 +293,33 @@ def build_profile_from_text(text: str) -> dict:
                 # stop if we hit another section heading
                 if sub.isupper() and len(sub.split()) <= 4:
                     break
-                if re.search(r"\b(developer|engineer|analyst|manager|intern|consultant|lead)\b", sub, flags=re.IGNORECASE):
-                    previous_roles.append(sub.strip())
+                # If the line starts with a date range like "1999-2002 ..." strip that off.
+                cleaned = re.sub(r"^\s*\d{4}\s*[-–]\s*(\d{4}|present|Present)\s*", "", sub)
+                cleaned = cleaned.strip(" -–")
+                if cleaned:
+                    previous_roles.append(cleaned)
             break
+
+    # If we saw sections like "Interested Job Function" in exported profiles,
+    # treat those as previous_roles too
+    for ln in lines:
+        low = ln.lower()
+        if "interested job function" in low or "desired role" in low:
+            parts = re.split(r"[:\-]", ln, maxsplit=1)
+            if len(parts) == 2:
+                role_text = parts[1].strip()
+            else:
+                role_text = ln.strip()
+            if role_text and role_text not in previous_roles:
+                previous_roles.append(role_text)
 
     profile = {
         **EMPTY_PROFILE,
         "name": name,
         "email": email,
         "phone": phone,
+        "linkedin": linkedin,
+        "github": github,
         "skills": skills,
         "experience_years": experience_years,
         "education": education,

@@ -431,10 +431,25 @@ with tab2:
                 if hidden:
                     skill_preview += f'<span style="color:#64748b;font-size:0.7rem;margin-left:4px;">+{hidden} more</span>'
 
+                # Social links (LinkedIn / GitHub)
+                social_bits = []
+                if profile.get("linkedin"):
+                    social_bits.append(f'<a href="{profile["linkedin"]}" target="_blank" style="color:#60a5fa;text-decoration:none;">LinkedIn</a>')
+                if profile.get("github"):
+                    sep = " · " if social_bits else ""
+                    social_bits.append(sep + f'<a href="{profile["github"]}" target="_blank" style="color:#60a5fa;text-decoration:none;">GitHub</a>')
+                social_html = "".join(social_bits)
+
                 st.markdown(f"""
                 <div class="profile-card">
                     <div class="profile-name">{profile.get('name', '—')}</div>
-                    <div class="profile-meta">{profile.get('email', '')}  ·  {profile.get('phone', '')}</div>
+                    <div class="profile-meta">
+                        {profile.get('email', '')}
+                        {' · ' if profile.get('email') and profile.get('phone') else ''}
+                        {profile.get('phone', '')}
+                        {' · ' if (profile.get('email') or profile.get('phone')) and social_html else ''}
+                        {social_html}
+                    </div>
                     <div class="profile-meta" style="margin-top:4px;">📍 {profile.get('location', '—')}  ·  🎓 {profile.get('education', '—')}</div>
                     <div style="margin-top:14px;">{skill_preview}</div>
                 </div>
